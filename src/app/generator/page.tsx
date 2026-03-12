@@ -11,12 +11,33 @@ function GeneratorContent() {
   const [qrValue, setQrValue] = useState(initialUrl);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [canvasReady, setCanvasReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleGenerate = (e: React.FormEvent) => {
+  const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (url.trim()) {
-      setQrValue(url);
-      setCanvasReady(false);
+    setError(null);
+    if (!url.trim()) return;
+
+    setLoading(true);
+    try {
+      const response = await fetch('/api/qr/generate', {
+        method: 'POST',
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || 'Failed to generate QR code');
+        setQrValue('');
+      } else {
+        setQrValue(url);
+        setCanvasReady(false);
+      }
+    } catch (err) {
+      setError('An error occurred. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -82,20 +103,31 @@ function GeneratorContent() {
       <div className="max-w-2xl mx-auto px-6 py-12">
         <h1 className="text-3xl font-bold text-gray-900 mb-8 text-center">QR Code Generator</h1>
         
-        <form onSubmit={handleGenerate} className="flex gap-3 mb-8">
+        <form onSubmit={handleGenerate} className="flex gap-3 mb-4">
           <input
             type="url"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="Enter URL..."
             className="flex-1 px-4 py-3 border border-gray-300 rounded-lg"
+            disabled={loading}
           />
-          <button type="submit" className="px-6 py-3 bg-indigo-600 text-white rounded-lg">
-            Generate
+          <button
+            type="submit"
+            className="px-6 py-3 bg-indigo-600 text-white rounded-lg disabled:opacity-50"
+            disabled={loading}
+          >
+            {loading ? 'Generating...' : 'Generate'}
           </button>
         </form>
+
+        {error && (
+          <div className="mb-8 p-4 bg-red-50 text-red-600 rounded-lg border border-red-200 text-center">
+            {error}
+          </div>
+        )}
         
-        {qrValue && (
+        {qrValue && !error && (
           <div className="flex flex-col items-center bg-white p-8 rounded-2xl shadow-lg">
             <div className="p-4 border-2 border-gray-100 rounded-xl mb-4">
               <QRCodeSVG 
