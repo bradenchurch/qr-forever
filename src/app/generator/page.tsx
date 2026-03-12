@@ -3,19 +3,22 @@
 import { useState, Suspense, useRef, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { QRCodeSVG, QRCodeCanvas } from 'qrcode.react';
+import { useAuth } from '@/contexts/AuthContext';
+import AccountModal from '@/components/AccountModal';
 
 function GeneratorContent() {
   const searchParams = useSearchParams();
   const initialUrl = searchParams.get('url') || '';
   const [url, setUrl] = useState(initialUrl);
+  const { isLoggedIn } = useAuth();
+  const [showAccountModal, setShowAccountModal] = useState(false);
   const [qrValue, setQrValue] = useState(initialUrl);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [canvasReady, setCanvasReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const handleGenerate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const generateQRCode = async () => {
     setError(null);
     if (!url.trim()) return;
 
@@ -39,6 +42,23 @@ function GeneratorContent() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGenerate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!url.trim()) return;
+
+    if (!isLoggedIn) {
+      setShowAccountModal(true);
+      return;
+    }
+
+    await generateQRCode();
+  };
+
+  const handleModalSuccess = async () => {
+    setShowAccountModal(false);
+    await generateQRCode();
   };
 
   useEffect(() => {
@@ -157,6 +177,13 @@ function GeneratorContent() {
           </div>
         )}
       </div>
+      <AccountModal
+        isOpen={showAccountModal}
+        onClose={() => setShowAccountModal(false)}
+        onSuccess={handleModalSuccess}
+        title="Sign in to generate"
+        message="Create a free account to generate and save your QR codes."
+      />
     </div>
   );
 }
