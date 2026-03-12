@@ -1,0 +1,138 @@
+"use client";
+
+import { useState, Suspense, useRef, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { QRCodeSVG, QRCodeCanvas } from 'qrcode.react';
+
+function GeneratorContent() {
+  const searchParams = useSearchParams();
+  const initialUrl = searchParams.get('url') || '';
+  const [url, setUrl] = useState(initialUrl);
+  const [qrValue, setQrValue] = useState(initialUrl);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [canvasReady, setCanvasReady] = useState(false);
+
+  const handleGenerate = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (url.trim()) {
+      setQrValue(url);
+      setCanvasReady(false);
+    }
+  };
+
+  useEffect(() => {
+    if (qrValue && canvasRef.current) {
+      const timer = setTimeout(() => setCanvasReady(true), 100);
+      return () => clearTimeout(timer);
+    }
+  }, [qrValue]);
+
+  const handleDownload = () => {
+    if (!canvasRef.current) return;
+    
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    // Get the original QR data
+    const originalData = canvas.toDataURL('image/png');
+    
+    // Create a new canvas with watermark
+    const newCanvas = document.createElement('canvas');
+    newCanvas.width = 500;
+    newCanvas.height = 500;
+    const newCtx = newCanvas.getContext('2d');
+    if (!newCtx) return;
+    
+    // Draw original QR
+    const img = new Image();
+    img.onload = () => {
+      newCtx.drawImage(img, 0, 0, 500, 500);
+      
+      // Add watermark - semi-transparent white circle in center
+      newCtx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      newCtx.beginPath();
+      newCtx.arc(250, 250, 80, 0, 2 * Math.PI);
+      newCtx.fill();
+      
+      // Border
+      newCtx.strokeStyle = '#e5e7eb';
+      newCtx.lineWidth = 3;
+      newCtx.stroke();
+      
+      // Watermark text
+      newCtx.fillStyle = '#6b7280';
+      newCtx.font = 'bold 18px Arial, sans-serif';
+      newCtx.textAlign = 'center';
+      newCtx.fillText('qrforever', 250, 245);
+      newCtx.font = 'bold 14px Arial, sans-serif';
+      newCtx.fillText('.com', 250, 265);
+      
+      // Download
+      const link = document.createElement('a');
+      link.download = 'qrcode.png';
+      link.href = newCanvas.toDataURL('image/png');
+      link.click();
+    };
+    img.src = originalData;
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-2xl mx-auto px-6 py-12">
+        <h1 className="text-3xl font-bold text-gray-900 mb-8 text-center">QR Code Generator</h1>
+        
+        <form onSubmit={handleGenerate} className="flex gap-3 mb-8">
+          <input
+            type="url"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="Enter URL..."
+            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg"
+          />
+          <button type="submit" className="px-6 py-3 bg-indigo-600 text-white rounded-lg">
+            Generate
+          </button>
+        </form>
+        
+        {qrValue && (
+          <div className="flex flex-col items-center bg-white p-8 rounded-2xl shadow-lg">
+            <div className="p-4 border-2 border-gray-100 rounded-xl mb-4">
+              <QRCodeSVG 
+                value={qrValue} 
+                size={250} 
+                level="H" 
+                includeMargin
+              />
+            </div>
+            <div style={{ position: 'absolute', left: '-9999px' }}>
+              <QRCodeCanvas
+                ref={canvasRef}
+                value={qrValue}
+                size={500}
+                level="H"
+                includeMargin
+              />
+            </div>
+            <button
+              onClick={handleDownload}
+              disabled={!canvasReady}
+              className="mt-4 px-6 py-3 bg-indigo-600 text-white rounded-lg disabled:opacity-50"
+            >
+              Download PNG (watermarked)
+            </button>
+            <p className="mt-2 text-xs text-gray-500">Free downloads include watermark</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function GeneratorPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center">Loading...</div>}>
+      <GeneratorContent />
+    </Suspense>
+  );
+}
