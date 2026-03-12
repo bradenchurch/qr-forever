@@ -6,9 +6,10 @@ import { useState } from 'react';
 import AccountModal from '@/components/AccountModal';
 
 export default function PricingPage() {
-  const { isLoggedIn, isPremium, isBasic, upgrade } = useAuth();
+  const { user, isLoggedIn, isPremium, isBasic } = useAuth();
   const router = useRouter();
   const [showAccountModal, setShowAccountModal] = useState(false);
+  const [loadingPlan, setLoadingPlan] = useState<'basic' | 'premium' | null>(null);
 
   const handleGetStarted = () => {
     if (!isLoggedIn) {
@@ -18,19 +19,42 @@ export default function PricingPage() {
     }
   };
 
+  const handleCheckout = async (plan: 'basic' | 'premium') => {
+    if (!user?.email) return;
+    try {
+      setLoadingPlan(plan);
+      const res = await fetch('/api/stripe/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan, email: user.email }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error(data.error || 'Failed to create checkout session');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to start checkout process. Please try again.');
+    } finally {
+      setLoadingPlan(null);
+    }
+  };
+
   const handleGetBasic = () => {
     if (!isLoggedIn) {
       setShowAccountModal(true);
-    } else {
-      upgrade('basic');
+    } else if (!isAlreadyBasic && !isAlreadyPremium) {
+      handleCheckout('basic');
     }
   };
 
   const handleGetPremium = () => {
     if (!isLoggedIn) {
       setShowAccountModal(true);
-    } else if (!isPremium) {
-      upgrade('premium');
+    } else if (!isAlreadyPremium) {
+      handleCheckout('premium');
     }
   };
 
@@ -117,8 +141,8 @@ export default function PricingPage() {
                 Current Plan
               </button>
             ) : (
-              <button onClick={handleGetBasic} className="w-full px-6 py-3 bg-white text-indigo-600 rounded-lg font-bold hover:bg-indigo-50 transition">
-                Get Basic for $3
+              <button onClick={handleGetBasic} disabled={loadingPlan === 'basic'} className="w-full px-6 py-3 bg-white text-indigo-600 rounded-lg font-bold hover:bg-indigo-50 transition disabled:opacity-75 disabled:cursor-not-allowed">
+                {loadingPlan === 'basic' ? 'Processing...' : 'Get Basic for $3'}
               </button>
             )}
           </div>
@@ -156,8 +180,8 @@ export default function PricingPage() {
                 Current Plan
               </button>
             ) : (
-              <button onClick={handleGetPremium} className="w-full px-6 py-3 bg-yellow-900 text-white rounded-lg font-bold hover:bg-yellow-800 transition">
-                Get Premium for $9
+              <button onClick={handleGetPremium} disabled={loadingPlan === 'premium'} className="w-full px-6 py-3 bg-yellow-900 text-white rounded-lg font-bold hover:bg-yellow-800 transition disabled:opacity-75 disabled:cursor-not-allowed">
+                {loadingPlan === 'premium' ? 'Processing...' : 'Get Premium for $9'}
               </button>
             )}
           </div>
@@ -264,11 +288,11 @@ export default function PricingPage() {
           <button onClick={handleGetStarted} className="px-8 py-4 bg-indigo-600 text-white text-lg rounded-xl font-bold hover:bg-indigo-700 transition shadow-lg hover:shadow-xl">
             Start Generating Free
           </button>
-          <button onClick={handleGetBasic} className="px-8 py-4 bg-indigo-100 text-indigo-700 text-lg rounded-xl font-bold hover:bg-indigo-200 transition shadow-lg hover:shadow-xl">
-            Get Basic for $3
+          <button onClick={handleGetBasic} disabled={loadingPlan === 'basic'} className="px-8 py-4 bg-indigo-100 text-indigo-700 text-lg rounded-xl font-bold hover:bg-indigo-200 transition shadow-lg hover:shadow-xl disabled:opacity-75 disabled:cursor-not-allowed">
+            {loadingPlan === 'basic' ? 'Processing...' : 'Get Basic for $3'}
           </button>
-          <button onClick={handleGetPremium} className="px-8 py-4 bg-yellow-400 text-yellow-900 text-lg rounded-xl font-bold hover:bg-yellow-300 transition shadow-lg hover:shadow-xl">
-            Get Premium for $9
+          <button onClick={handleGetPremium} disabled={loadingPlan === 'premium'} className="px-8 py-4 bg-yellow-400 text-yellow-900 text-lg rounded-xl font-bold hover:bg-yellow-300 transition shadow-lg hover:shadow-xl disabled:opacity-75 disabled:cursor-not-allowed">
+            {loadingPlan === 'premium' ? 'Processing...' : 'Get Premium for $9'}
           </button>
         </div>
       </section>
