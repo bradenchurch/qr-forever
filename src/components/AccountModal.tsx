@@ -15,13 +15,14 @@ export default function AccountModal({
   isOpen, 
   onClose, 
   onSuccess,
-  title = "Create your account",
-  message = "Enter your email to get started. It's free!"
+  title = "Sign in to your account",
+  message = "Enter your email and password to get started."
 }: AccountModalProps) {
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { signIn } = useAuth();
+  const { signIn, signUp } = useAuth();
 
   if (!isOpen) return null;
 
@@ -34,6 +35,11 @@ export default function AccountModal({
       return;
     }
 
+    if (!password.trim()) {
+      setError('Please enter your password');
+      return;
+    }
+
     // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
@@ -43,20 +49,34 @@ export default function AccountModal({
 
     setIsLoading(true);
     
-    // Simulate network delay for realism
-    await new Promise(resolve => setTimeout(resolve, 500));
+    try {
+      try {
+        await signIn(email, password);
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        if (errorMsg.includes('Invalid email or password') || errorMsg.includes('User not found')) {
+           // If user doesn't exist, try to sign them up instead of just failing.
+           await signUp(email, password);
+        } else {
+           throw err;
+        }
+      }
 
-    signIn(email, 'password');
-    setIsLoading(false);
-    
-    // Clear form
-    setEmail('');
-    
-    // Trigger success callback
-    if (onSuccess) {
-      onSuccess();
-    } else {
-      onClose();
+      // Clear form
+      setEmail('');
+      setPassword('');
+
+      // Trigger success callback
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        onClose();
+      }
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      setError(errorMsg || 'Failed to authenticate');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -100,6 +120,19 @@ export default function AccountModal({
                 placeholder="you@example.com"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition"
                 autoFocus
+              />
+            </div>
+            <div className="mb-4">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition"
               />
               {error && (
                 <p className="mt-2 text-sm text-red-600">{error}</p>
