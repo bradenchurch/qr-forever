@@ -20,13 +20,12 @@ export default function PricingPage() {
   };
 
   const handleCheckout = async (plan: 'basic' | 'premium') => {
-    if (!user?.email) return;
     try {
       setLoadingPlan(plan);
       const res = await fetch('/api/stripe/create-checkout-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan, email: user.email }),
+        body: JSON.stringify({ plan, email: user?.email }),
       });
       const data = await res.json();
       if (data.url) {
@@ -43,17 +42,13 @@ export default function PricingPage() {
   };
 
   const handleGetBasic = () => {
-    if (!isLoggedIn) {
-      setShowAccountModal(true);
-    } else if (!isAlreadyBasic && !isAlreadyPremium) {
+    if (!isAlreadyBasic && !isAlreadyPremium) {
       handleCheckout('basic');
     }
   };
 
   const handleGetPremium = () => {
-    if (!isLoggedIn) {
-      setShowAccountModal(true);
-    } else if (!isAlreadyPremium) {
+    if (!isAlreadyPremium) {
       handleCheckout('premium');
     }
   };

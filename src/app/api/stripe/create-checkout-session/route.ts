@@ -1,15 +1,15 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_123');
 
 export async function POST(req: Request) {
   try {
     const { plan, email } = await req.json();
 
-    if (!plan || !email) {
+    if (!plan) {
       return NextResponse.json(
-        { error: 'Missing plan or email' },
+        { error: 'Missing plan' },
         { status: 400 }
       );
     }
@@ -29,9 +29,8 @@ export async function POST(req: Request) {
     const origin = req.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
     // Create Checkout Sessions from body params.
-    const session = await stripe.checkout.sessions.create({
+    const checkoutOptions: Stripe.Checkout.SessionCreateParams = {
       payment_method_types: ['card'],
-      customer_email: email,
       line_items: [
         {
           price_data: {
@@ -48,7 +47,15 @@ export async function POST(req: Request) {
       mode: 'payment',
       success_url: `${origin}/success?session_id={CHECKOUT_SESSION_ID}&plan=${plan}`,
       cancel_url: `${origin}/pricing`,
-    });
+    };
+
+    if (email) {
+      checkoutOptions.customer_email = email;
+    } else {
+      checkoutOptions.customer_creation = 'always';
+    }
+
+    const session = await stripe.checkout.sessions.create(checkoutOptions);
 
     return NextResponse.json({ url: session.url });
   } catch (err: unknown) {
