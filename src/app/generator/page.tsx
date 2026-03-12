@@ -129,7 +129,7 @@ function GeneratorContent() {
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="Enter URL..."
-            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg"
+            className="flex-1 px-4 py-3 border border-gray-300 text-gray-900 rounded-lg"
             disabled={loading}
           />
           <button
