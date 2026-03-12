@@ -144,6 +144,119 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Marketing Copy / Feature Descriptions */}
+      <section className="relative z-10 bg-gray-50 py-24">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-extrabold text-gray-900 mb-4 tracking-tight">
+              Powerful features for every need.
+            </h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              From simple URL QR codes to complex custom designs. QR Forever has the tools you need.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex items-center gap-2 mb-3">
+                <h3 className="text-xl font-bold text-gray-900">URL QR Codes</h3>
+                <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-bold rounded-full">Free</span>
+              </div>
+              <p className="text-gray-600 leading-relaxed">Generate QR codes for any website URL. Just paste your link and get an instant QR code that works forever.</p>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex items-center gap-2 mb-3">
+                <h3 className="text-xl font-bold text-gray-900">WiFi QR Codes</h3>
+                <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs font-bold rounded-full uppercase">Premium</span>
+              </div>
+              <p className="text-gray-600 leading-relaxed">Let guests connect to your WiFi instantly by scanning a QR code. No more typing complex passwords.</p>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex items-center gap-2 mb-3">
+                <h3 className="text-xl font-bold text-gray-900">vCard QR Codes</h3>
+                <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs font-bold rounded-full uppercase">Premium</span>
+              </div>
+              <p className="text-gray-600 leading-relaxed">Create digital business cards. Scan to instantly add contact info to phone contacts.</p>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex items-center gap-2 mb-3">
+                <h3 className="text-xl font-bold text-gray-900">Email QR Codes</h3>
+                <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs font-bold rounded-full uppercase">Premium</span>
+              </div>
+              <p className="text-gray-600 leading-relaxed">Start an email with pre-filled recipient, subject, and body. Perfect for contact pages.</p>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex items-center gap-2 mb-3">
+                <h3 className="text-xl font-bold text-gray-900">SMS QR Codes</h3>
+                <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs font-bold rounded-full uppercase">Premium</span>
+              </div>
+              <p className="text-gray-600 leading-relaxed">Pre-fill SMS messages with recipient and text. Great for marketing campaigns and promotions.</p>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex items-center gap-2 mb-3">
+                <h3 className="text-xl font-bold text-gray-900">Phone QR Codes</h3>
+                <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs font-bold rounded-full uppercase">Premium</span>
+              </div>
+              <p className="text-gray-600 leading-relaxed">One-tap calling. Scan to instantly dial a phone number. Simple as that.</p>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex items-center gap-2 mb-3">
+                <h3 className="text-xl font-bold text-gray-900">Crypto QR Codes</h3>
+                <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs font-bold rounded-full uppercase">Premium</span>
+              </div>
+              <p className="text-gray-600 leading-relaxed">Accept cryptocurrency payments. Generate QR codes for Bitcoin, Ethereum, wallet addresses.</p>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex items-center gap-2 mb-3">
+                <h3 className="text-xl font-bold text-gray-900">Custom Colors</h3>
+                <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs font-bold rounded-full uppercase">Premium</span>
+              </div>
+              <p className="text-gray-600 leading-relaxed">Match your brand. Choose any color for your QR code while maintaining scannability.</p>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex items-center gap-2 mb-3">
+                <h3 className="text-xl font-bold text-gray-900">Custom Logos</h3>
+                <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs font-bold rounded-full uppercase">Premium</span>
+              </div>
+              <p className="text-gray-600 leading-relaxed">Add your logo to the center of QR codes. Perfect for business branding.</p>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex items-center gap-2 mb-3">
+                <h3 className="text-xl font-bold text-gray-900">Frame Templates</h3>
+                <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs font-bold rounded-full uppercase">Premium</span>
+              </div>
+              <p className="text-gray-600 leading-relaxed">Choose from professional QR code frames with built-in call-to-actions.</p>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex items-center gap-2 mb-3">
+                <h3 className="text-xl font-bold text-gray-900">Batch Generation</h3>
+                <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs font-bold rounded-full uppercase">Premium</span>
+              </div>
+              <p className="text-gray-600 leading-relaxed">Generate hundreds of QR codes at once. Upload a CSV and get them all.</p>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex items-center gap-2 mb-3">
+                <h3 className="text-xl font-bold text-gray-900">Design Studio</h3>
+                <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs font-bold rounded-full uppercase">Premium</span>
+              </div>
+              <p className="text-gray-600 leading-relaxed">Full control over QR code appearance. Adjust dots, corners, and more.</p>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
       {/* Pricing Preview */}
       <section className="relative z-10 max-w-5xl mx-auto px-6 py-24">
         <h2 className="text-4xl font-extrabold text-gray-900 text-center mb-4 tracking-tight">
