@@ -8,7 +8,7 @@ import Link from 'next/link';
 function SuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { upgrade, isLoggedIn } = useAuth();
+  const { upgrade, isLoggedIn, signIn, signUp } = useAuth();
   const [upgraded, setUpgraded] = useState(false);
   const [error, setError] = useState(false);
 
@@ -19,14 +19,34 @@ function SuccessContent() {
 
     const handleSuccess = async () => {
       if (sessionId && plan && (plan === 'basic' || plan === 'premium')) {
-        if (isLoggedIn) {
+        try {
+          if (!isLoggedIn) {
+            const res = await fetch(`/api/stripe/session?session_id=${sessionId}`);
+            const data = await res.json();
+
+            if (data.email) {
+              // Auto-signin without password or with a generated password
+              const generatedPassword = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2);
+              try {
+                // We're passing a generated password here because the auth context
+                // is mock/local storage based. In a real app we'd trigger a magic link
+                // or have an endpoint that issues a token directly from stripe hook.
+                await signIn(data.email, generatedPassword);
+              } catch (err) {
+                 await signUp(data.email, generatedPassword);
+              }
+            } else {
+               throw new Error("No email found in session");
+            }
+          }
+
           // Upgrade the user locally
-          upgrade(plan);
+          upgrade(plan as 'basic' | 'premium');
           if (isMounted) setUpgraded(true);
           // Clear query params to prevent re-triggering
           window.history.replaceState({}, document.title, '/success');
-        } else {
-          // If they somehow got here without being logged in
+        } catch (err) {
+          console.error(err);
           if (isMounted) setError(true);
         }
       } else if (!upgraded) {
@@ -40,7 +60,7 @@ function SuccessContent() {
     return () => {
       isMounted = false;
     };
-  }, [searchParams, upgrade, isLoggedIn, router, upgraded]);
+  }, [searchParams, upgrade, isLoggedIn, signIn, signUp, router, upgraded]);
 
   if (error) {
     return (
@@ -52,7 +72,7 @@ function SuccessContent() {
         </div>
         <h1 className="text-3xl font-bold text-gray-900 mb-4">Something went wrong</h1>
         <p className="text-gray-600 mb-8 max-w-md mx-auto">
-          You appear to not be logged in. Please log in first to apply your purchase.
+          We couldn&apos;t automatically create your account. Please log in first to apply your purchase, or contact support if the issue persists.
         </p>
         <Link href="/pricing" className="px-6 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition">
           Go back to Pricing
