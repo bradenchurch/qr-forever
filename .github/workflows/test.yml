@@ -12,6 +12,6 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-      - run: npm ci --include=dev
+      - run: npm install --include=dev
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test
