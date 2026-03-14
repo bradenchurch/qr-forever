@@ -41,3 +41,8 @@ yarn-error.log*
 next-env.d.ts
 server.log
 rate_limits.sqlite
+dev_server.log
+playwright-report/
+test-results/
+blob-report/
+/home/jules/verification/
