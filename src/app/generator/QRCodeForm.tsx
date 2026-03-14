@@ -1,4 +1,10 @@
+import BatchForm from './BatchForm';
+
 export default function QRCodeForm({ type, data, onChange }: { type: string, data: Record<string, unknown>, onChange: (d: Record<string, unknown>) => void }) {
+  if (type === 'batch') {
+    return <BatchForm data={data} onChange={onChange} />;
+  }
+
   if (type === 'url') {
     return (
       <input
