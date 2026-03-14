@@ -95,5 +95,25 @@ export default function QRCodeForm({ type, data, onChange }: { type: string, dat
     );
   }
 
+  if (type === 'event') {
+    return (
+      <div className="space-y-4">
+        <input type="text" value={(data.title as string) || ''} onChange={(e) => onChange({ ...data, title: e.target.value })} placeholder="Event Title" className="w-full px-4 py-3 border border-gray-300 rounded-lg" required />
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Start Date</label>
+            <input type="datetime-local" value={(data.startDate as string) || ''} onChange={(e) => onChange({ ...data, startDate: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-lg" required />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-400 uppercase mb-1">End Date</label>
+            <input type="datetime-local" value={(data.endDate as string) || ''} onChange={(e) => onChange({ ...data, endDate: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-lg" required />
+          </div>
+        </div>
+        <input type="text" value={(data.location as string) || ''} onChange={(e) => onChange({ ...data, location: e.target.value })} placeholder="Location" className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+        <textarea value={(data.description as string) || ''} onChange={(e) => onChange({ ...data, description: e.target.value })} placeholder="Event Description" className="w-full px-4 py-3 border border-gray-300 rounded-lg h-24"></textarea>
+      </div>
+    );
+  }
+
   return null;
 }
