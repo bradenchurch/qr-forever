@@ -59,8 +59,8 @@ export default function ClientNavigation() {
           {isLoggedIn ? (
             <div className="flex items-center gap-3">
               <Link 
-                href="/generator" 
-                className={`px-4 py-2 rounded-lg font-medium transition ${pathname === '/generator' ? 'bg-indigo-100 text-indigo-600' : 'text-gray-600 hover:text-indigo-600'}`}
+                href="/dashboard"
+                className={`px-4 py-2 rounded-lg font-medium transition ${pathname === '/dashboard' ? 'bg-indigo-100 text-indigo-600' : 'text-gray-600 hover:text-indigo-600'}`}
               >
                 My QR Codes
               </Link>
@@ -120,7 +120,7 @@ export default function ClientNavigation() {
             <hr className="border-gray-200" />
             {isLoggedIn ? (
               <>
-                <Link href="/generator" className="text-gray-600 font-medium" onClick={() => setShowMobileMenu(false)}>My QR Codes</Link>
+                <Link href="/dashboard" className="text-gray-600 font-medium" onClick={() => setShowMobileMenu(false)}>My QR Codes</Link>
                 <button onClick={signOut} className="text-left text-gray-500">Sign out</button>
               </>
             ) : (

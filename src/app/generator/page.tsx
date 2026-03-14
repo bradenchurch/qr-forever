@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, Suspense, useRef, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import QRCodeStyling from 'qr-code-styling';
 import { useAuth } from '@/contexts/AuthContext';
 import AccountModal from '@/components/AccountModal';
@@ -22,14 +22,17 @@ const QR_TYPES = [
 ];
 
 function GeneratorContent() {
-  const { isPremium } = useAuth();
+  const { isPremium, isLoggedIn } = useAuth();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const initialUrl = searchParams.get('url') || '';
+  const editId = searchParams.get('id');
+
   const [qrType, setQrType] = useState('url');
   const [formData, setFormData] = useState<Record<string, unknown>>({ url: initialUrl });
-  const { isLoggedIn } = useAuth();
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [qrValue, setQrValue] = useState(initialUrl);
+  const [qrName, setQrName] = useState('My QR Code');
 
   // Customization state
   const [fgColor, setFgColor] = useState('#000000');
@@ -52,6 +55,90 @@ function GeneratorContent() {
   const [canvasReady, setCanvasReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Load existing QR if editing
+  useEffect(() => {
+    const fetchQr = async () => {
+      if (!editId || !isLoggedIn) return;
+      try {
+        const response = await fetch(`/api/qr/${editId}`);
+        if (response.ok) {
+          const qr = await response.json();
+          setQrName(qr.name);
+          setQrType(qr.type);
+          setFormData(JSON.parse(qr.formData));
+          setQrValue(qr.content);
+
+          const styling = JSON.parse(qr.styling);
+          setFgColor(styling.fgColor || '#000000');
+          setIsGradient(styling.isGradient || false);
+          setFgGradientEnd(styling.fgGradientEnd || '#000000');
+          setBgColor(styling.bgColor || '#ffffff');
+          setLogoUrl(styling.logoUrl || '');
+          setDotStyle(styling.dotStyle || 'square');
+          setMarkerStyle(styling.markerStyle || 'square');
+          setFrame(styling.frame || 'none');
+          setFgGradientRotation(styling.fgGradientRotation || 45);
+          setLogoSize(styling.logoSize || 0.4);
+        }
+      } catch (err) {
+        console.error("Failed to fetch QR:", err);
+      }
+    };
+    fetchQr();
+  }, [editId, isLoggedIn]);
+
+  const saveQrToHistory = async (value: string) => {
+    if (!isLoggedIn) return;
+
+    setIsSaving(true);
+    try {
+      const styling = {
+        fgColor,
+        isGradient,
+        fgGradientEnd,
+        bgColor,
+        logoUrl,
+        dotStyle,
+        markerStyle,
+        frame,
+        fgGradientRotation,
+        logoSize
+      };
+
+      const payload = {
+        name: qrName,
+        type: qrType,
+        content: value,
+        formData: JSON.stringify(formData),
+        styling: JSON.stringify(styling)
+      };
+
+      let response;
+      if (editId) {
+        response = await fetch(`/api/qr/${editId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      } else {
+        response = await fetch('/api/qr', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      }
+
+      if (!response.ok) {
+        console.error("Failed to save QR to history");
+      }
+    } catch (err) {
+      console.error("Error saving QR:", err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const generateQRCode = async () => {
     setError(null);
@@ -82,6 +169,10 @@ function GeneratorContent() {
       } else {
         setQrValue(value);
         setCanvasReady(false);
+        // Save to history automatically if logged in
+        if (isLoggedIn) {
+          await saveQrToHistory(value);
+        }
       }
     } catch {
       setError('An error occurred. Please try again.');
@@ -356,7 +447,21 @@ function GeneratorContent() {
         
         <div className="flex-1 space-y-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">QR Code Generator</h1>
+            <div className="flex items-center justify-between mb-4">
+              <h1 className="text-3xl font-bold text-gray-900">{editId ? 'Edit QR Code' : 'QR Code Generator'}</h1>
+              {isLoggedIn && (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={qrName}
+                    onChange={(e) => setQrName(e.target.value)}
+                    className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-medium"
+                    placeholder="QR Name"
+                  />
+                  {isSaving && <span className="text-xs text-gray-400">Saving...</span>}
+                </div>
+              )}
+            </div>
 
             <div className="flex flex-wrap gap-2 mb-6">
               {QR_TYPES.map(type => (
@@ -383,7 +488,7 @@ function GeneratorContent() {
                 className="w-full mt-6 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition shadow-md disabled:opacity-50"
                 disabled={loading}
               >
-                {loading ? 'Generating...' : 'Generate QR Code'}
+                {loading ? 'Generating...' : (editId ? 'Update QR Code' : 'Generate QR Code')}
               </button>
             </form>
 
@@ -649,6 +754,14 @@ function GeneratorContent() {
                     </svg>
                     Download {downloadFormat.toUpperCase()}
                   </button>
+                  {isLoggedIn && (
+                    <button
+                      onClick={() => router.push('/dashboard')}
+                      className="w-full px-6 py-2 text-indigo-600 text-sm font-semibold hover:bg-indigo-50 rounded-lg transition"
+                    >
+                      View in Dashboard
+                    </button>
+                  )}
                 </div>
                 {!isPremium && <p className="mt-3 text-xs text-gray-500 font-medium">Free downloads include watermark</p>}
               </>
