@@ -1,0 +1,13 @@
+
+> qr-landing-page@0.1.0 dev
+> next dev
+
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.2:3000
+- Environments: .env.local
+
+✓ Starting...
+✓ Ready in 1231ms
+ GET / 200 in 1341ms (compile: 992ms, render: 350ms)
+ GET /api/auth/get-session 200 in 1660ms (compile: 1624ms, render: 36ms)

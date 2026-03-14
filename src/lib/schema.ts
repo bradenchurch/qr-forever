@@ -6,6 +6,7 @@ export const user = sqliteTable('user', {
   email: text('email').notNull().unique(),
   emailVerified: integer('emailVerified', { mode: 'boolean' }).notNull().default(false),
   image: text('image'),
+  plan: text('plan').$type<'free' | 'basic' | 'premium'>().notNull().default('free'),
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull(),
 })
@@ -44,4 +45,16 @@ export const verification = sqliteTable('verification', {
   expiresAt: integer('expiresAt', { mode: 'timestamp' }).notNull(),
   createdAt: integer('createdAt', { mode: 'timestamp' }),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }),
+})
+
+export const qrCode = sqliteTable('qrCode', {
+  id: text('id').primaryKey(),
+  userId: text('userId').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  type: text('type').notNull(),
+  content: text('content').notNull(),
+  formData: text('formData').notNull(), // JSON string
+  styling: text('styling').notNull(),   // JSON string
+  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull(),
+  updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull(),
 })
