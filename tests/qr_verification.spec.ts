@@ -7,6 +7,7 @@ const QR_TYPES = [
   { id: 'email', label: 'Email', fields: ['Email To', 'Subject', 'Body'] },
   { id: 'sms', label: 'SMS', fields: ['Phone Number', 'Message'] },
   { id: 'phone', label: 'Phone', fields: ['Phone Number'] },
+  { id: 'event', label: 'Event', fields: ['Event Title', 'Location', 'Event Description', 'Start Date', 'End Date'] },
   { id: 'crypto', label: 'Crypto', fields: ['Wallet Address'] },
 ];
 
@@ -22,8 +23,10 @@ test.describe('QR Type Verification', () => {
 
       // Check if fields are visible
       for (const field of type.fields) {
-        if (field === 'Body' || field === 'Message') {
+        if (field === 'Body' || field === 'Message' || field === 'Event Description') {
             await expect(page.locator(`textarea[placeholder="${field}"]`)).toBeVisible();
+        } else if (field === 'Start Date' || field === 'End Date') {
+            await expect(page.locator('label').filter({ hasText: field })).toBeVisible();
         } else {
             await expect(page.getByPlaceholder(field, { exact: true })).toBeVisible();
         }

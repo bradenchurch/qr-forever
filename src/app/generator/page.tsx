@@ -17,6 +17,7 @@ const QR_TYPES = [
   { id: 'email', label: 'Email', isPremium: false },
   { id: 'sms', label: 'SMS', isPremium: false },
   { id: 'phone', label: 'Phone', isPremium: false },
+  { id: 'event', label: 'Event', isPremium: false },
   { id: 'crypto', label: 'Crypto', isPremium: true },
 ];
 
@@ -208,7 +209,12 @@ function GeneratorContent() {
       if (!blob) return;
 
       if (downloadFormat === 'svg') {
-        let svgText = await blob.text();
+        let svgText = '';
+        if (blob instanceof Blob) {
+          svgText = await blob.text();
+        } else {
+          svgText = blob.toString();
+        }
 
         // Add Frame if selected and premium
         if (isPremium && frame !== 'none') {
