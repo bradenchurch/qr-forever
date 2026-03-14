@@ -3,7 +3,7 @@ export default function QRCodeForm({ type, data, onChange }: { type: string, dat
     return (
       <input
         type="url"
-          value={((data.url as string) as string) || ''}
+        value={(data.url as string) || ''}
         onChange={(e) => onChange({ ...data, url: e.target.value })}
         placeholder="Enter URL..."
         className="w-full px-4 py-3 border border-gray-300 rounded-lg"
@@ -52,6 +52,7 @@ export default function QRCodeForm({ type, data, onChange }: { type: string, dat
         <input type="text" value={(data.title as string) || ''} onChange={(e) => onChange({ ...data, title: e.target.value })} placeholder="Title" className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
         <input type="tel" value={(data.phone as string) || ''} onChange={(e) => onChange({ ...data, phone: e.target.value })} placeholder="Phone Number" className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
         <input type="email" value={(data.email as string) || ''} onChange={(e) => onChange({ ...data, email: e.target.value })} placeholder="Email Address" className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+        <input type="text" value={(data.address as string) || ''} onChange={(e) => onChange({ ...data, address: e.target.value })} placeholder="Address" className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
         <input type="url" value={(data.website as string) || ''} onChange={(e) => onChange({ ...data, website: e.target.value })} placeholder="Website" className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
       </div>
     );
@@ -88,7 +89,6 @@ export default function QRCodeForm({ type, data, onChange }: { type: string, dat
         <select value={(data.cryptoType as string) || 'bitcoin'} onChange={(e) => onChange({ ...data, cryptoType: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white">
           <option value="bitcoin">Bitcoin</option>
           <option value="ethereum">Ethereum</option>
-          <option value="litecoin">Litecoin</option>
         </select>
         <input type="text" value={(data.address as string) || ''} onChange={(e) => onChange({ ...data, address: e.target.value })} placeholder="Wallet Address" className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
       </div>

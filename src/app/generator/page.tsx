@@ -11,9 +11,9 @@ import QRCodeForm from './QRCodeForm';
 import { buildQrValue } from './utils';
 
 const QR_TYPES = [
-  { id: 'url', label: 'Website URL', isPremium: false },
+  { id: 'url', label: 'URL', isPremium: false },
+  { id: 'wifi', label: 'WiFi', isPremium: false },
   { id: 'vcard', label: 'vCard', isPremium: false },
-  { id: 'wifi', label: 'Wi-Fi', isPremium: false },
   { id: 'email', label: 'Email', isPremium: false },
   { id: 'sms', label: 'SMS', isPremium: false },
   { id: 'phone', label: 'Phone', isPremium: false },
