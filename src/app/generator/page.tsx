@@ -14,11 +14,11 @@ import { buildQrValue } from './utils';
 
 const QR_TYPES = [
   { id: 'url', label: 'URL', isPremium: false },
-  { id: 'wifi', label: 'WiFi', isPremium: false },
-  { id: 'vcard', label: 'vCard', isPremium: false },
-  { id: 'email', label: 'Email', isPremium: false },
-  { id: 'sms', label: 'SMS', isPremium: false },
-  { id: 'phone', label: 'Phone', isPremium: false },
+  { id: 'wifi', label: 'WiFi', isPremium: true },
+  { id: 'vcard', label: 'vCard', isPremium: true },
+  { id: 'email', label: 'Email', isPremium: true },
+  { id: 'sms', label: 'SMS', isPremium: true },
+  { id: 'phone', label: 'Phone', isPremium: true },
   { id: 'event', label: 'Event', isPremium: false },
   { id: 'crypto', label: 'Crypto', isPremium: true },
   { id: 'batch', label: 'Batch', isPremium: true },
