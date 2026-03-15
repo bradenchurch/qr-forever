@@ -3,11 +3,13 @@
 import { useState, Suspense, useRef, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import QRCodeStyling from 'qr-code-styling';
+import JSZip from 'jszip';
 import { useAuth } from '@/contexts/AuthContext';
 import AccountModal from '@/components/AccountModal';
 import PremiumBadge from './PremiumBadge';
 import PremiumOverlay from './PremiumOverlay';
 import QRCodeForm from './QRCodeForm';
+import BatchForm from './BatchForm';
 import { buildQrValue } from './utils';
 
 const QR_TYPES = [
@@ -19,6 +21,7 @@ const QR_TYPES = [
   { id: 'phone', label: 'Phone', isPremium: false },
   { id: 'event', label: 'Event', isPremium: false },
   { id: 'crypto', label: 'Crypto', isPremium: true },
+  { id: 'batch', label: 'Batch', isPremium: true },
 ];
 
 function GeneratorContent() {
@@ -43,7 +46,6 @@ function GeneratorContent() {
   const [dotStyle, setDotStyle] = useState('square');
   const [markerStyle, setMarkerStyle] = useState('square');
   const [frame, setFrame] = useState('none');
-  const [batchCsv, setBatchCsv] = useState<File | null>(null);
 
   // New customization states
   const [fgGradientRotation, setFgGradientRotation] = useState(45);
@@ -56,6 +58,7 @@ function GeneratorContent() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null);
 
   // Load existing QR if editing
   useEffect(() => {
@@ -140,6 +143,219 @@ function GeneratorContent() {
     }
   };
 
+  const generateHighResQR = async (value: string, format: 'png' | 'svg' | 'jpeg'): Promise<Blob | null> => {
+    const exportQr = new QRCodeStyling({
+      width: 1000,
+      height: 1000,
+      type: format === 'svg' ? 'svg' : 'canvas',
+      data: value,
+      image: isPremium && logoUrl ? logoUrl : undefined,
+      dotsOptions: {
+        type: (isPremium ? dotStyle : 'square') as import('qr-code-styling').DotType,
+        color: isPremium && !isGradient ? fgColor : undefined,
+        gradient: isPremium && isGradient ? {
+          type: 'linear',
+          rotation: (fgGradientRotation * Math.PI) / 180,
+          colorStops: [
+            { offset: 0, color: fgColor },
+            { offset: 1, color: fgGradientEnd }
+          ]
+        } : undefined
+      },
+      backgroundOptions: {
+        color: isPremium ? bgColor : '#ffffff',
+      },
+      cornersSquareOptions: {
+        type: (isPremium ? markerStyle : 'square') as import('qr-code-styling').CornerSquareType,
+        color: isPremium && !isGradient ? fgColor : undefined,
+      },
+      imageOptions: {
+        crossOrigin: 'anonymous',
+        margin: 20,
+        imageSize: logoSize,
+      }
+    });
+
+    try {
+      const extension = format;
+      const blob = await exportQr.getRawData(extension === 'jpeg' ? 'png' : extension);
+      if (!blob) return null;
+
+      if (format === 'svg') {
+        let svgText = '';
+        if (blob instanceof Blob) {
+          svgText = await blob.text();
+        } else {
+          svgText = blob.toString();
+        }
+
+        // Add Frame if selected and premium
+        if (isPremium && frame !== 'none') {
+          let frameSvg = '';
+          const frameColor = '#1f2937'; // dark gray
+          if (frame === 'scan-me' || frame === 'phone') {
+            frameSvg = `
+              <g>
+                <rect x="50" y="50" width="900" height="900" rx="40" fill="none" stroke="${frameColor}" stroke-width="24" />
+                <rect x="350" y="35" width="300" height="60" fill="white" />
+                <text x="500" y="80" font-family="Arial, sans-serif" font-size="40" font-weight="900" fill="${frameColor}" text-anchor="middle" letter-spacing="4">
+                  ${frame === 'scan-me' ? 'SCAN ME' : 'CALL US'}
+                </text>
+              </g>
+            `;
+          } else if (frame === 'simple') {
+            frameSvg = `<rect x="20" y="20" width="960" height="960" fill="none" stroke="#d1d5db" stroke-width="16" />`;
+          } else if (frame === 'rounded') {
+            frameSvg = `<rect x="20" y="20" width="960" height="960" rx="120" fill="none" stroke="#c7d2fe" stroke-width="20" />`;
+          } else if (frame === 'fancy') {
+            frameSvg = `<rect x="30" y="30" width="940" height="940" rx="60" fill="none" stroke="#f472b6" stroke-width="20" stroke-dasharray="20,10" />`;
+          }
+          // Wrap existing content in a group and scale/translate it to fit inside the frame
+          svgText = svgText.replace('<svg ', '<svg overflow="visible" ');
+          svgText = svgText.replace('>', '><g transform="translate(100, 100) scale(0.8)">');
+          svgText = svgText.replace('</svg>', `</g>${frameSvg}</svg>`);
+        }
+
+        if (!isPremium) {
+          // Inject SVG watermark
+          const watermark = `
+            <g transform="translate(500, 500)">
+              <circle r="160" fill="white" fill-opacity="0.9" stroke="#e5e7eb" stroke-width="6" />
+              <text y="-10" font-family="Arial, sans-serif" font-size="36" font-weight="bold" fill="#6b7280" text-anchor="middle">qrforever</text>
+              <text y="30" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="#6b7280" text-anchor="middle">.com</text>
+            </g>
+          `;
+          svgText = svgText.replace('</svg>', `${watermark}</svg>`);
+        }
+        return new Blob([svgText], { type: 'image/svg+xml' });
+      }
+
+      // Handle PNG/JPEG
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const originalData = e.target?.result as string;
+          const newCanvas = document.createElement('canvas');
+          newCanvas.width = 1000;
+          newCanvas.height = 1000;
+          const newCtx = newCanvas.getContext('2d');
+          if (!newCtx) {
+            resolve(null);
+            return;
+          }
+
+          const img = new Image();
+          img.onload = () => {
+            // Add Frame if selected and premium
+            if (isPremium && frame !== 'none') {
+              newCtx.strokeStyle = '#1f2937';
+              if (frame === 'scan-me' || frame === 'phone') {
+                newCtx.lineWidth = 24;
+                newCtx.strokeRect(50, 50, 900, 900);
+                newCtx.fillStyle = 'white';
+                newCtx.fillRect(350, 35, 300, 60);
+                newCtx.fillStyle = '#1f2937';
+                newCtx.font = 'black 40px Arial, sans-serif';
+                newCtx.textAlign = 'center';
+                newCtx.fillText(frame === 'scan-me' ? 'SCAN ME' : 'CALL US', 500, 80);
+              } else if (frame === 'simple') {
+                newCtx.lineWidth = 16;
+                newCtx.strokeStyle = '#d1d5db';
+                newCtx.strokeRect(20, 20, 960, 960);
+              } else if (frame === 'rounded') {
+                newCtx.lineWidth = 20;
+                newCtx.strokeStyle = '#c7d2fe';
+                newCtx.beginPath();
+                newCtx.roundRect(20, 20, 960, 960, 120);
+                newCtx.stroke();
+              } else if (frame === 'fancy') {
+                newCtx.lineWidth = 20;
+                newCtx.strokeStyle = '#f472b6';
+                newCtx.setLineDash([40, 20]);
+                newCtx.strokeRect(30, 30, 940, 940);
+                newCtx.setLineDash([]);
+              }
+            }
+
+            newCtx.drawImage(img, isPremium && frame !== 'none' ? 100 : 0, isPremium && frame !== 'none' ? 100 : 0, isPremium && frame !== 'none' ? 800 : 1000, isPremium && frame !== 'none' ? 800 : 1000);
+
+            if (!isPremium) {
+              newCtx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+              newCtx.beginPath();
+              newCtx.arc(500, 500, 160, 0, 2 * Math.PI);
+              newCtx.fill();
+              newCtx.strokeStyle = '#e5e7eb';
+              newCtx.lineWidth = 6;
+              newCtx.stroke();
+              newCtx.fillStyle = '#6b7280';
+              newCtx.font = 'bold 36px Arial, sans-serif';
+              newCtx.textAlign = 'center';
+              newCtx.fillText('qrforever', 500, 490);
+              newCtx.font = 'bold 28px Arial, sans-serif';
+              newCtx.fillText('.com', 500, 530);
+            }
+
+            const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
+            newCanvas.toBlob((blob) => resolve(blob), mimeType, 0.9);
+          };
+          img.src = originalData;
+        };
+        const dataBlob = blob instanceof Blob ? blob : new Blob([blob as BlobPart]);
+        reader.readAsDataURL(dataBlob);
+      });
+    } catch (e) {
+      console.error('QR generation failed', e);
+      return null;
+    }
+  };
+
+  const handleBatchDownload = async () => {
+    const urls = (formData.urls as string[]) || [];
+    if (urls.length === 0) {
+      setError('Please add at least one URL for batch generation.');
+      return;
+    }
+
+    setLoading(true);
+    setBatchProgress({ current: 0, total: urls.length });
+    const zip = new JSZip();
+
+    try {
+      for (let i = 0; i < urls.length; i++) {
+        const url = urls[i];
+        const blob = await generateHighResQR(url, downloadFormat);
+        if (blob) {
+          const extension = downloadFormat;
+          let filename = `qrcode-${i + 1}.${extension}`;
+          try {
+            const domain = new URL(url).hostname.replace('www.', '');
+            filename = `${domain}-${i + 1}.${extension}`;
+          } catch {
+            // keep default
+          }
+          zip.file(filename, blob);
+        }
+        setBatchProgress({ current: i + 1, total: urls.length });
+        // small delay to let UI update
+        await new Promise(r => setTimeout(r, 50));
+      }
+
+      const content = await zip.generateAsync({ type: 'blob' });
+      const zipUrl = URL.createObjectURL(content);
+      const link = document.createElement('a');
+      link.download = `qrcodes-batch.zip`;
+      link.href = zipUrl;
+      link.click();
+      URL.revokeObjectURL(zipUrl);
+    } catch (err) {
+      console.error("Batch failed", err);
+      setError("Failed to generate batch ZIP.");
+    } finally {
+      setLoading(false);
+      setBatchProgress(null);
+    }
+  };
+
   const generateQRCode = async () => {
     setError(null);
 
@@ -183,6 +399,16 @@ function GeneratorContent() {
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (qrType === 'batch') {
+      if (!isLoggedIn) {
+        setShowAccountModal(true);
+        return;
+      }
+      await handleBatchDownload();
+      return;
+    }
+
     const value = buildQrValue(qrType, formData);
     if (!value.trim()) return;
 
@@ -196,7 +422,25 @@ function GeneratorContent() {
 
   const handleModalSuccess = async () => {
     setShowAccountModal(false);
-    await generateQRCode();
+    if (qrType === 'batch') {
+      await handleBatchDownload();
+    } else {
+      await generateQRCode();
+    }
+  };
+
+  const handleDownload = async () => {
+    if (!qrCodeRef.current) return;
+
+    const blob = await generateHighResQR(qrValue, downloadFormat);
+    if (!blob) return;
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.download = `qrcode.${downloadFormat}`;
+    link.href = url;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   useEffect(() => {
@@ -257,190 +501,6 @@ function GeneratorContent() {
     }
   }, [qrValue, isPremium, fgColor, isGradient, fgGradientEnd, bgColor, logoUrl, dotStyle, markerStyle, fgGradientRotation, logoSize]);
 
-  const handleDownload = async () => {
-    if (!qrCodeRef.current) return;
-    
-    // We need to render it at high res for download
-    const exportQr = new QRCodeStyling({
-      width: 1000,
-      height: 1000,
-      type: downloadFormat === 'svg' ? 'svg' : 'canvas',
-      data: qrValue || 'https://qrforever.com',
-      image: isPremium && logoUrl ? logoUrl : undefined,
-      dotsOptions: {
-        type: (isPremium ? dotStyle : 'square') as import('qr-code-styling').DotType,
-        color: isPremium && !isGradient ? fgColor : undefined,
-        gradient: isPremium && isGradient ? {
-          type: 'linear',
-          rotation: (fgGradientRotation * Math.PI) / 180,
-          colorStops: [
-            { offset: 0, color: fgColor },
-            { offset: 1, color: fgGradientEnd }
-          ]
-        } : undefined
-      },
-      backgroundOptions: {
-        color: isPremium ? bgColor : '#ffffff',
-      },
-      cornersSquareOptions: {
-        type: (isPremium ? markerStyle : 'square') as import('qr-code-styling').CornerSquareType,
-        color: isPremium && !isGradient ? fgColor : undefined,
-      },
-      imageOptions: {
-        crossOrigin: 'anonymous',
-        margin: 20,
-        imageSize: logoSize,
-      }
-    });
-
-    try {
-      const extension = downloadFormat;
-      const mimeType = extension === 'jpeg' ? 'image/jpeg' : (extension === 'svg' ? 'image/svg+xml' : 'image/png');
-      const blob = await exportQr.getRawData(extension === 'jpeg' ? 'png' : extension);
-      if (!blob) return;
-
-      if (downloadFormat === 'svg') {
-        let svgText = '';
-        if (blob instanceof Blob) {
-          svgText = await blob.text();
-        } else {
-          svgText = blob.toString();
-        }
-
-        // Add Frame if selected and premium
-        if (isPremium && frame !== 'none') {
-          let frameSvg = '';
-          const frameColor = '#1f2937'; // dark gray
-          if (frame === 'scan-me' || frame === 'phone') {
-            frameSvg = `
-              <g>
-                <rect x="50" y="50" width="900" height="900" rx="40" fill="none" stroke="${frameColor}" stroke-width="24" />
-                <rect x="350" y="35" width="300" height="60" fill="white" />
-                <text x="500" y="80" font-family="Arial, sans-serif" font-size="40" font-weight="900" fill="${frameColor}" text-anchor="middle" letter-spacing="4">
-                  ${frame === 'scan-me' ? 'SCAN ME' : 'CALL US'}
-                </text>
-              </g>
-            `;
-          } else if (frame === 'simple') {
-            frameSvg = `<rect x="20" y="20" width="960" height="960" fill="none" stroke="#d1d5db" stroke-width="16" />`;
-          } else if (frame === 'rounded') {
-            frameSvg = `<rect x="20" y="20" width="960" height="960" rx="120" fill="none" stroke="#c7d2fe" stroke-width="20" />`;
-          } else if (frame === 'fancy') {
-            frameSvg = `<rect x="30" y="30" width="940" height="940" rx="60" fill="none" stroke="#f472b6" stroke-width="20" stroke-dasharray="20,10" />`;
-          }
-          // Wrap existing content in a group and scale/translate it to fit inside the frame
-          svgText = svgText.replace('<svg ', '<svg overflow="visible" ');
-          svgText = svgText.replace('>', '><g transform="translate(100, 100) scale(0.8)">');
-          svgText = svgText.replace('</svg>', `</g>${frameSvg}</svg>`);
-        }
-
-        if (!isPremium) {
-          // Inject SVG watermark
-          const watermark = `
-            <g transform="translate(500, 500)">
-              <circle r="160" fill="white" fill-opacity="0.9" stroke="#e5e7eb" stroke-width="6" />
-              <text y="-10" font-family="Arial, sans-serif" font-size="36" font-weight="bold" fill="#6b7280" text-anchor="middle">qrforever</text>
-              <text y="30" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="#6b7280" text-anchor="middle">.com</text>
-            </g>
-          `;
-          svgText = svgText.replace('</svg>', `${watermark}</svg>`);
-        }
-        const finalBlob = new Blob([svgText], { type: 'image/svg+xml' });
-        const url = URL.createObjectURL(finalBlob);
-        const link = document.createElement('a');
-        link.download = `qrcode.${extension}`;
-        link.href = url;
-        link.click();
-        URL.revokeObjectURL(url);
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const originalData = e.target?.result as string;
-
-        // Create a new canvas with watermark
-        const newCanvas = document.createElement('canvas');
-        newCanvas.width = 1000;
-        newCanvas.height = 1000;
-        const newCtx = newCanvas.getContext('2d');
-        if (!newCtx) return;
-
-        // Draw original QR
-        const img = new Image();
-        img.onload = () => {
-          // Add Frame if selected and premium
-          if (isPremium && frame !== 'none') {
-            newCtx.strokeStyle = '#1f2937';
-            if (frame === 'scan-me' || frame === 'phone') {
-              newCtx.lineWidth = 24;
-              newCtx.strokeRect(50, 50, 900, 900);
-
-              newCtx.fillStyle = 'white';
-              newCtx.fillRect(350, 35, 300, 60);
-
-              newCtx.fillStyle = '#1f2937';
-              newCtx.font = 'black 40px Arial, sans-serif';
-              newCtx.textAlign = 'center';
-              newCtx.fillText(frame === 'scan-me' ? 'SCAN ME' : 'CALL US', 500, 80);
-            } else if (frame === 'simple') {
-              newCtx.lineWidth = 16;
-              newCtx.strokeStyle = '#d1d5db';
-              newCtx.strokeRect(20, 20, 960, 960);
-            } else if (frame === 'rounded') {
-              newCtx.lineWidth = 20;
-              newCtx.strokeStyle = '#c7d2fe';
-              // Draw rounded rect
-              newCtx.beginPath();
-              newCtx.roundRect(20, 20, 960, 960, 120);
-              newCtx.stroke();
-            } else if (frame === 'fancy') {
-              newCtx.lineWidth = 20;
-              newCtx.strokeStyle = '#f472b6';
-              newCtx.setLineDash([40, 20]);
-              newCtx.strokeRect(30, 30, 940, 940);
-              newCtx.setLineDash([]);
-            }
-          }
-
-          newCtx.drawImage(img, isPremium && frame !== 'none' ? 100 : 0, isPremium && frame !== 'none' ? 100 : 0, isPremium && frame !== 'none' ? 800 : 1000, isPremium && frame !== 'none' ? 800 : 1000);
-
-          if (!isPremium) {
-            // Add watermark - semi-transparent white circle in center
-            newCtx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-            newCtx.beginPath();
-            newCtx.arc(500, 500, 160, 0, 2 * Math.PI);
-            newCtx.fill();
-
-            // Border
-            newCtx.strokeStyle = '#e5e7eb';
-            newCtx.lineWidth = 6;
-            newCtx.stroke();
-
-            // Watermark text
-            newCtx.fillStyle = '#6b7280';
-            newCtx.font = 'bold 36px Arial, sans-serif';
-            newCtx.textAlign = 'center';
-            newCtx.fillText('qrforever', 500, 490);
-            newCtx.font = 'bold 28px Arial, sans-serif';
-            newCtx.fillText('.com', 500, 530);
-          }
-
-          // Download
-          const link = document.createElement('a');
-          link.download = `qrcode.${extension}`;
-          link.href = newCanvas.toDataURL(mimeType, 0.9);
-          link.click();
-        };
-        img.src = originalData;
-      };
-      const dataBlob = blob instanceof Blob ? blob : new Blob([blob as BlobPart]);
-      reader.readAsDataURL(dataBlob);
-    } catch (e) {
-      console.error('Download failed', e);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-6 py-12 flex flex-col md:flex-row gap-8">
@@ -482,14 +542,46 @@ function GeneratorContent() {
             </div>
 
             <form onSubmit={handleGenerate} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-6">
-              <QRCodeForm type={qrType} data={formData} onChange={setFormData} />
+              {qrType === 'batch' ? (
+                <BatchForm data={formData} onChange={setFormData} />
+              ) : (
+                <QRCodeForm type={qrType} data={formData} onChange={setFormData} />
+              )}
               <button
                 type="submit"
-                className="w-full mt-6 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition shadow-md disabled:opacity-50"
+                className="w-full mt-6 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
                 disabled={loading}
               >
-                {loading ? 'Generating...' : (editId ? 'Update QR Code' : 'Generate QR Code')}
+                {loading ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    {qrType === 'batch' ? 'Generating Batch...' : 'Generating...'}
+                  </>
+                ) : (
+                  qrType === 'batch' ? 'Generate & Download ZIP' : (editId ? 'Update QR Code' : 'Generate QR Code')
+                )}
               </button>
+
+              {batchProgress && (
+                <div className="mt-4 space-y-2">
+                  <div className="flex justify-between text-xs font-bold text-gray-500 uppercase">
+                    <span>Processing Batch</span>
+                    <span>{Math.round((batchProgress.current / batchProgress.total) * 100)}%</span>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                    <div
+                      className="bg-indigo-600 h-full transition-all duration-300"
+                      style={{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }}
+                    />
+                  </div>
+                  <p className="text-center text-xs text-gray-400">
+                    Generated {batchProgress.current} of {batchProgress.total} codes
+                  </p>
+                </div>
+              )}
             </form>
 
             <PremiumOverlay>
@@ -664,39 +756,6 @@ function GeneratorContent() {
                     ))}
                   </div>
                 </div>
-              </div>
-            </PremiumOverlay>
-
-            <PremiumOverlay>
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4 mt-6">
-                <h3 className="font-bold text-gray-900 text-lg flex items-center gap-2">
-                  Batch Generation <PremiumBadge />
-                </h3>
-                <p className="text-sm text-gray-600">Upload a CSV to generate multiple QR codes at once.</p>
-                <div>
-                  <input
-                    type="file"
-                    accept=".csv"
-                    onChange={(e) => setBatchCsv(e.target.files?.[0] || null)}
-                    className="block w-full text-sm text-gray-500
-                      file:mr-4 file:py-2 file:px-4
-                      file:rounded-full file:border-0
-                      file:text-sm file:font-semibold
-                      file:bg-indigo-50 file:text-indigo-700
-                      hover:file:bg-indigo-100 cursor-pointer"
-                  />
-                </div>
-                {batchCsv && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      alert("Batch generation started! (Simulated download)");
-                    }}
-                    className="mt-2 px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded-lg hover:bg-indigo-700 transition"
-                  >
-                    Generate & Download All
-                  </button>
-                )}
               </div>
             </PremiumOverlay>
 
