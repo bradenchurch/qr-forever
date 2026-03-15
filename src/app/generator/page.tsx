@@ -696,7 +696,13 @@ function GeneratorContent() {
                       accept="image/*"
                       onChange={(e) => {
                         if (e.target.files && e.target.files[0]) {
-                          setLogoUrl(URL.createObjectURL(e.target.files[0]));
+                          const reader = new FileReader();
+                          reader.onload = (event) => {
+                            if (event.target?.result) {
+                              setLogoUrl(event.target.result as string);
+                            }
+                          };
+                          reader.readAsDataURL(e.target.files[0]);
                         } else {
                           setLogoUrl('');
                         }
