@@ -1,4 +1,5 @@
 import { betterAuth } from "better-auth";
+import { magicLink } from "better-auth/plugins";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "./db";
 import * as schema from "./schema";
@@ -21,4 +22,11 @@ export const auth = betterAuth({
             },
         },
     },
+    plugins: [
+        magicLink({
+            sendMagicLink: async ({ email, token, url }, request) => {
+                console.log(`[Magic Link] Sending to ${email}: ${url}`);
+            },
+        }),
+    ],
 });

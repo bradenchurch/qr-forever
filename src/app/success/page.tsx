@@ -3,14 +3,17 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { authClient } from '@/lib/client-auth';
 import Link from 'next/link';
 
 function SuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { upgrade, isLoggedIn, signIn, signUp } = useAuth();
+  const { upgrade, isLoggedIn } = useAuth();
   const [upgraded, setUpgraded] = useState(false);
   const [error, setError] = useState(false);
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const [email, setEmail] = useState('');
 
   useEffect(() => {
     let isMounted = true;
@@ -18,6 +21,8 @@ function SuccessContent() {
     const plan = searchParams.get('plan');
 
     const handleSuccess = async () => {
+      if (magicLinkSent) return;
+
       if (sessionId && plan && (plan === 'basic' || plan === 'premium')) {
         try {
           if (!isLoggedIn) {
@@ -25,16 +30,13 @@ function SuccessContent() {
             const data = await res.json();
 
             if (data.email) {
-              // Auto-signin without password or with a generated password
-              const generatedPassword = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2);
-              try {
-                // We're passing a generated password here because the auth context
-                // is mock/local storage based. In a real app we'd trigger a magic link
-                // or have an endpoint that issues a token directly from stripe hook.
-                await signIn(data.email, generatedPassword);
-              } catch (err) {
-                 await signUp(data.email, generatedPassword);
-              }
+              setEmail(data.email);
+              await authClient.signIn.magicLink({
+                email: data.email,
+                callbackURL: '/generator'
+              });
+              if (isMounted) setMagicLinkSent(true);
+              return;
             } else {
                throw new Error("No email found in session");
             }
@@ -49,7 +51,7 @@ function SuccessContent() {
           console.error(err);
           if (isMounted) setError(true);
         }
-      } else if (!upgraded) {
+      } else if (!upgraded && !magicLinkSent) {
         // Missing parameters, redirect to pricing
         router.push('/pricing');
       }
@@ -60,7 +62,7 @@ function SuccessContent() {
     return () => {
       isMounted = false;
     };
-  }, [searchParams, upgrade, isLoggedIn, signIn, signUp, router, upgraded]);
+  }, [searchParams, upgrade, isLoggedIn, router, upgraded, magicLinkSent]);
 
   if (error) {
     return (
@@ -77,6 +79,25 @@ function SuccessContent() {
         <Link href="/pricing" className="px-6 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition">
           Go back to Pricing
         </Link>
+      </div>
+    );
+  }
+
+  if (magicLinkSent) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-20 h-20 bg-blue-100 text-blue-500 rounded-full flex items-center justify-center mb-6 mx-auto">
+          <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+        </div>
+        <h1 className="text-4xl font-bold text-gray-900 mb-4">Check Your Email</h1>
+        <p className="text-xl text-gray-600 mb-8 max-w-md mx-auto">
+          We&apos;ve sent a magic link to <strong>{email}</strong> to securely complete your account setup and access your premium features.
+        </p>
+        <p className="text-sm text-gray-500 mb-8 max-w-md mx-auto">
+          You can safely close this window and click the link in your email to continue.
+        </p>
       </div>
     );
   }
