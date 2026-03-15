@@ -1,11 +1,60 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { QRCodeSVG } from 'qrcode.react';
 import QRCodeStyling from 'qr-code-styling';
+
+function DashboardQRPreview({ qr, isPremium }: { qr: any; isPremium: boolean }) {
+  const qrRef = useRef<HTMLDivElement>(null);
+  const styling = JSON.parse(qr.styling || '{}');
+
+  useEffect(() => {
+    if (!qrRef.current) return;
+    qrRef.current.innerHTML = '';
+
+    const qrCode = new QRCodeStyling({
+      width: 160,
+      height: 160,
+      type: 'svg',
+      data: qr.content,
+      image: isPremium && styling.logoUrl ? styling.logoUrl : undefined,
+      dotsOptions: {
+        type: (isPremium ? styling.dotStyle : 'square') as any,
+        color: isPremium && !styling.isGradient ? styling.fgColor : undefined,
+        gradient: isPremium && styling.isGradient ? {
+          type: 'linear',
+          rotation: (styling.fgGradientRotation * Math.PI) / 180,
+          colorStops: [
+            { offset: 0, color: styling.fgColor },
+            { offset: 1, color: styling.fgGradientEnd }
+          ]
+        } : undefined
+      },
+      backgroundOptions: {
+        color: isPremium ? styling.bgColor : '#ffffff',
+      },
+      cornersSquareOptions: {
+        type: (isPremium ? styling.markerStyle : 'square') as any,
+        color: isPremium && !styling.isGradient ? styling.fgColor : undefined,
+      },
+      imageOptions: {
+        crossOrigin: 'anonymous',
+        margin: 5,
+        imageSize: styling.logoSize || 0.4,
+      }
+    });
+
+    qrCode.append(qrRef.current);
+  }, [qr.content, isPremium, styling.logoUrl, styling.dotStyle, styling.isGradient, styling.fgColor, styling.fgGradientRotation, styling.fgGradientEnd, styling.bgColor, styling.markerStyle, styling.logoSize]);
+
+  return (
+    <div className="w-full h-full flex items-center justify-center overflow-hidden">
+      <div ref={qrRef} style={{ pointerEvents: 'none' }} className="flex items-center justify-center scale-90 transform origin-center" />
+    </div>
+  );
+}
 
 export default function DashboardPage() {
   const { isLoggedIn, isPremium } = useAuth();
@@ -268,24 +317,10 @@ export default function DashboardPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
              {filteredAndSortedQrs.map((qr) => {
-               const styling = JSON.parse(qr.styling);
                return (
                  <div key={qr.id} className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col hover:shadow-md transition-shadow">
                    <div className="bg-gray-50 rounded-2xl p-4 mb-4 flex items-center justify-center aspect-square relative group">
-                     <QRCodeSVG
-                        value={qr.content}
-                        size={160}
-                        level="H"
-                        includeMargin={false}
-                        imageSettings={styling.logoUrl && isPremium ? {
-                          src: styling.logoUrl,
-                          x: undefined,
-                          y: undefined,
-                          height: 32,
-                          width: 32,
-                          excavate: true,
-                        } : undefined}
-                     />
+                     <DashboardQRPreview qr={qr} isPremium={isPremium} />
                    </div>
                    <div className="flex-1">
                      <div className="flex items-center justify-between mb-1">
